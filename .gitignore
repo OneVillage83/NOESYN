@@ -1,0 +1,53 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+dist/
+build/
+coverage/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Databases / local state
+*.db
+*.sqlite
+*.sqlite3
+local-data/
+cache/
+
+# Research artifacts that may carry restricted/licensed content
+papers/
+pdfs/
+fulltext/
+artifacts/private/
+user-uploads/
+
+# Audio generated from restricted/user content
+audio/private/
+
+# Logs
+*.log
+logs/
