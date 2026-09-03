@@ -1,88 +1,184 @@
 # NOESYN Scholarly Source Strategy
 
+## Status
+
+- **Phase 1A source-contract evaluation:** COMPLETE
+- **Initial universal metadata pair:** Crossref + OpenAlex
+- **Authority:** `docs/adr/ADR-0004-initial-sources-and-hybrid-discovery.md`
+- **Provider contracts:** `docs/sources/contracts/`
+
 ## Goal
 
-NOESYN should discover broadly without treating any single external provider as canonical truth.
+NOESYN discovers broadly without treating any single external provider as canonical truth.
 
-The source layer exists to collect observations. Canonicalization, version resolution, access selection, and rights decisions happen in NOESYN-owned domains.
+The source layer collects **observations**. Canonicalization, version resolution, access selection, rights decisions, artifact identity and evidence semantics happen in NOESYN-owned domains.
 
 ## Source classes
 
-### Metadata and identity sources
+### Initial universal metadata/identity sources
 
-Primary candidates:
+#### Crossref — BASELINE
 
-- Crossref
-- OpenAlex
-- Semantic Scholar Academic Graph
-- PubMed
-- Europe PMC
-- arXiv
-- DOAJ
-- DataCite where relevant to research objects
+Primary role:
 
-### Open/full-text and repository sources
+- DOI-centric publisher/member-deposited metadata;
+- exact DOI lookup/candidate identity;
+- bibliographic metadata;
+- funding, ORCID/ROR, licenses, updates/relationships when deposited.
 
-Primary candidates:
+Production contract: `contracts/CROSSREF.md`.
 
-- PubMed Central
-- Europe PMC
-- CORE
-- arXiv
-- institutional repositories
-- subject repositories
-- publisher-hosted open content
+#### OpenAlex — BASELINE
+
+Primary role:
+
+- broad scholarly works/authors/institutions/sources/topics graph;
+- citation/reference enrichment;
+- non-DOI candidate generation;
+- cross-identifiers;
+- OA/access-location enrichment;
+- official bulk snapshot/incremental synchronization path.
+
+OpenAlex IDs are external aliases, never NOESYN primary keys.
+
+Production contract: `contracts/OPENALEX.md`.
+
+### Biomedical/domain sources
+
+#### PubMed
+
+Role:
+
+- biomedical bibliography;
+- PMID identity;
+- MeSH/indexing/publication types;
+- DOI/PMCID/NCBI cross-links.
+
+Contract: `contracts/PUBMED.md`.
+
+#### PubMed Central (PMC)
+
+Role:
+
+- PMCID/crosswalk observations;
+- structured JATS/XML and authorized biomedical full text;
+- OA/manuscript dataset observations;
+- corrections/version/integrity inputs.
+
+Critical rule: presence in PMC does not equal unrestricted reuse.
+
+Contract: `contracts/PMC.md`.
+
+#### Europe PMC
+
+Role:
+
+- life-science discovery;
+- citation/reference/grant/annotation enrichment;
+- DOI/PMID/PMCID crosswalks;
+- permitted open full-text XML/bulk enrichment.
+
+Contract: `contracts/EUROPE_PMC.md`.
 
 ### Access-resolution sources
 
-Primary candidates:
+#### Unpaywall — ENABLED ROLE
 
-- Unpaywall
-- CORE
-- repository metadata
-- publisher metadata
-- source-specific OA fields
+Role:
 
-### Citation/relationship sources
+- DOI OA classification/access locations;
+- candidate version/license/location observations.
 
-Primary candidates:
+It is an access resolver, not canonical identity or final rights authority. Broad new OA synchronization should align with the current OpenAlex snapshot/sync path rather than legacy assumptions about standalone Unpaywall snapshots.
 
-- Semantic Scholar
-- OpenAlex
-- Crossref relationship/update metadata
-- PubMed/PMC where available
-- parsed document references
+Contract: `contracts/UNPAYWALL.md`.
 
-No citation graph source is assumed complete.
+#### CORE — LICENSE-GATED
+
+Role when applicable commercial license is approved:
+
+- repository aggregation;
+- OA metadata and full-text candidate discovery;
+- works without DOI;
+- provider/repository provenance.
+
+Current production/commercial use is gated by the terms captured in `contracts/CORE.md`.
+
+### Preprint/version source
+
+#### arXiv
+
+Role:
+
+- version-aware preprint discovery;
+- explicit `vN` lineage;
+- DOI/publication relationship candidates;
+- permitted metadata/content synchronization via official API/OAI/bulk mechanisms.
+
+Article licenses are version-specific; the default arXiv license is not blanket third-party redistribution permission.
+
+Contract: `contracts/ARXIV.md`.
+
+### Strategic enrichment source
+
+#### Semantic Scholar — LICENSE-GATED FOR BROAD PERSISTENT COMMERCIAL DATA USE
+
+Potential roles:
+
+- citation/reference enrichment;
+- recommendations;
+- semantic discovery;
+- graph/source-specific features.
+
+Semantic Scholar is **not** the initial bulk metadata backbone. Broad persistent dataset/commercial production usage remains gated until the applicable current AI2 license is explicitly approved and recorded.
+
+Contract: `contracts/SEMANTIC_SCHOLAR.md`.
+
+### Future/secondary candidates
+
+These remain candidates, not Phase 1A production contracts:
+
+- DOAJ;
+- DataCite where relevant to research objects;
+- institutional repositories;
+- subject repositories;
+- publisher APIs/content endpoints where terms permit;
+- additional discipline-specific indexes.
+
+Before production use, each needs a dedicated verified source contract.
 
 ## Adapter contract
 
-Every adapter must document:
+Every adapter documents:
 
 ```text
 SourceAdapterContract
-├─ source name / version
+├─ source name / schema version
 ├─ supported operations
-├─ authentication model
-├─ rate / concurrency limits
-├─ bulk-access options
+├─ authentication/identification
+├─ rate / concurrency / budget limits
+├─ bulk/snapshot options
+├─ service/API license gate
+├─ content-rights fields and limitations
 ├─ attribution requirements
-├─ caching rules
+├─ caching/storage rules
 ├─ retry/backoff policy
 ├─ pagination semantics
-├─ update/freshness semantics
+├─ update/freshness/reconciliation semantics
 ├─ identifier namespaces
 ├─ metadata field mapping
 ├─ full-text capabilities
-├─ rights/license signals
 ├─ known data-quality caveats
 ├─ terms/policy references
-└─ adapter test fixtures
+├─ adapter fixtures
+└─ date last verified
 ```
 
 ## Standard adapter operations
 
-Not every source implements every operation, but the internal interfaces should be consistent:
+Not every source implements every operation. Unsupported operations fail explicitly rather than returning misleading empty results.
+
+Candidate internal interfaces:
 
 - `search_works(query, filters, cursor)`
 - `get_work_by_external_id(namespace, value)`
@@ -94,219 +190,127 @@ Not every source implements every operation, but the internal interfaces should 
 - `retrieve_artifact(...)`
 - `get_rights_metadata(...)`
 
-Unsupported operations must fail explicitly rather than returning misleading empty results.
+The exact code interface may evolve in Phase 1B, but source capability/unsupported-state semantics may not be hidden.
 
-## Initial source roles
+## Provider-neutral source observation
 
-### Crossref
+A source adapter emits a provider-neutral observation rather than mutating canonical entities directly.
 
-Primary role:
+Minimum durable observation concepts:
 
-- DOI-centric metadata backbone;
-- publisher-deposited bibliographic metadata;
-- funding, ORCID/ROR links when deposited;
-- licenses and post-publication updates when available.
+```text
+SourceRecordObservation
+├─ noesyn UUIDv7 observation ID
+├─ source/provider
+├─ provider record ID
+├─ observed_at
+├─ provider update timestamp(s)
+├─ adapter/schema version
+├─ raw payload hash/reference (where retention permits)
+├─ normalized payload hash
+├─ external identifiers
+├─ candidate metadata
+├─ relationship observations
+├─ access/license observations
+└─ source-specific quality/status metadata
+```
 
-Important current operational facts:
+Canonicalization is a separate Identity operation with its own decision provenance.
 
-- REST API is publicly available;
-- identified/polite access is recommended;
-- cache responses and back off responsibly;
-- public data files/snapshots are available for bulk-scale use.
+## Federated/local search strategy
 
-Official docs:
-- https://www.crossref.org/documentation/retrieve-metadata/rest-api/
-- https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/
-- https://www.crossref.org/documentation/retrieve-metadata/rest-api/tips-for-using-public-data-files-and-plus-snapshots/
-
-### OpenAlex
-
-Primary role:
-
-- broad scholarly graph;
-- works/authors/institutions/topics/venues;
-- citation and OA-related enrichment;
-- candidate generation and entity linking.
-
-Architecture rule: OpenAlex IDs are external aliases, never NOESYN primary keys.
-
-Before implementation, freeze the current API/snapshot contract from official documentation and record rate/auth/bulk terms in a dedicated source contract.
-
-### Semantic Scholar
-
-Primary role:
-
-- paper/author/citation/reference graph;
-- recommendations/semantic discovery;
-- optional embeddings/features where terms permit;
-- downloadable datasets for scale where appropriate.
-
-Official API families currently include Academic Graph, Recommendations, and Datasets.
-
-Official docs:
-- https://www.semanticscholar.org/product/api
-- https://api.semanticscholar.org/api-docs/
-
-### Unpaywall
-
-Primary role:
-
-- DOI-based OA status and candidate access locations;
-- access resolution, not canonical identity.
-
-Current API v2 requires an email parameter. Published guidance limits API use to 100,000 calls/day and recommends the database snapshot for higher-scale local use.
-
-Official docs:
-- https://unpaywall.org/products/api
-
-### CORE
-
-Primary role:
-
-- repository aggregation;
-- OA metadata and full-text candidate discovery;
-- repository/provider linkage.
-
-CORE exposes machine-readable metadata and full text, with API terms and rate policies that must be captured before production-scale use.
-
-Official docs:
-- https://core.ac.uk/services/api
-
-### PubMed
-
-Primary role:
-
-- biomedical bibliographic discovery;
-- PMID identity;
-- MeSH and biomedical-specific metadata;
-- linkage to PMC and NCBI ecosystem.
-
-Implementation should use approved NCBI programmatic interfaces and respect NCBI usage policies.
-
-### PubMed Central (PMC)
-
-Primary role:
-
-- biomedical structured/open full text where permitted;
-- PMCID identity;
-- JATS/XML-rich document ingestion;
-- author-manuscript and OA datasets according to collection terms.
-
-Important: presence in PMC does not mean unrestricted reuse. PMC requires automated retrieval through approved developer services and article-level license compliance.
-
-Official docs:
-- https://pmc.ncbi.nlm.nih.gov/tools/developers/
-- https://pmc.ncbi.nlm.nih.gov/tools/oai/
-
-### Europe PMC
-
-Primary role:
-
-- life-sciences discovery;
-- metadata, citations/related information, grants, annotations;
-- OA full-text access and bulk/OAI options.
-
-Official docs:
-- https://europepmc.org/developers
-
-### arXiv
-
-Primary role:
-
-- preprint discovery and versioning in supported fields;
-- arXiv identifier aliases;
-- source/PDF access according to arXiv terms/licenses;
-- early research versions important for version graphs.
-
-Before implementation, capture current API/bulk-access and content-license rules in a dedicated source contract. Do not assume every arXiv submission uses the same reuse license.
-
-### DOAJ
-
-Primary role:
-
-- OA journal/article discovery;
-- journal-level OA metadata and candidate license evidence.
-
-Before implementation, freeze current API terms/schema and distinguish journal policy from article-level rights evidence.
-
-## Federated search strategy
+ADR-0004 freezes a **hybrid local-first** strategy.
 
 ### Stage 1 — query understanding
 
 Normalize:
 
 - free-text terms;
-- exact title/author/DOI requests;
+- exact title/author/DOI/PMID/arXiv requests;
 - date ranges;
 - fields/disciplines;
 - publication types;
-- OA preference;
+- access preferences;
 - citation/author constraints.
 
-### Stage 2 — candidate generation
+### Stage 2 — local candidate generation
 
-Query multiple relevant sources in parallel, subject to rate and availability policy.
+Search locally synchronized/canonical metadata first using the initial PostgreSQL search projection.
 
-### Stage 3 — candidate normalization
+### Stage 3 — permitted external expansion
 
-Map source records into a provider-neutral observation schema.
+Query applicable source APIs for candidates/freshness when local coverage is insufficient or source-specific search is useful.
 
-### Stage 4 — identity resolution
+Respect:
 
-Resolve candidates into canonical NOESYN works/versions using identifiers plus probabilistic/heuristic matching.
+- license gates;
+- current quotas/budgets;
+- source-specific rate policies;
+- query/page limits;
+- provider availability.
 
-### Stage 5 — ranking
+### Stage 4 — provider-neutral normalization
 
-Ranking should combine:
+Map every source response into source observations.
+
+### Stage 5 — identity resolution
+
+Resolve candidates into NOESYN `ScholarlyWork` / `WorkVersion` identities using exact identifiers plus controlled confidence-based matching.
+
+### Stage 6 — ranking
+
+Ranking may combine:
 
 - lexical/semantic relevance;
 - field/date intent;
 - source agreement;
-- document type;
-- version state;
+- document/version type;
 - integrity flags;
-- availability;
+- access state;
 - user context.
 
-Citation count may be a feature but never a truth score.
+Citation count is a feature, never a truth/evidence-quality score.
 
 ## Deduplication signals
 
-High-confidence signals:
+### High confidence
 
 - normalized DOI match;
-- PMID/PMCID crosswalk;
-- exact arXiv-version relationship;
+- trusted PMID/PMCID crosswalk;
+- exact arXiv base/version relationship;
 - trusted provider cross-identifiers.
 
-Secondary signals:
+### Secondary/confidence-scored
 
 - normalized title similarity;
 - author overlap/order;
-- publication date proximity;
-- venue;
+- publication-date proximity;
+- venue/source;
 - abstract similarity;
 - reference fingerprints;
 - document hashes.
 
-Ambiguous matches should remain unresolved rather than forced.
+Ambiguous matches remain unresolved rather than being forced.
 
 ## Freshness and replay
 
-Each source observation must record:
+Each source observation records:
 
 - source;
-- source record ID;
+- provider record ID;
 - observation timestamp;
 - source update timestamp where available;
 - adapter version;
-- payload/normalized hash.
+- payload/normalized hash;
+- sync/reconciliation checkpoint context when relevant.
 
-Incremental synchronization must not destroy prior observations that were used by historical derived outputs.
+Incremental synchronization does not destroy prior observations used by historical outputs.
+
+OpenAlex merges/deletions and similar provider topology changes require reconciliation jobs; upstream provider IDs disappearing must not mutate NOESYN canonical IDs.
 
 ## Source-quality policy
 
-NOESYN should eventually track quality dimensions such as:
+Track quality dimensions such as:
 
 - identifier completeness;
 - title/author disagreement;
@@ -314,30 +318,53 @@ NOESYN should eventually track quality dimensions such as:
 - citation disagreement;
 - access-location freshness;
 - license evidence quality;
+- version clarity;
 - retraction/update timeliness.
 
-Provider disagreement should be surfaced to identity/policy systems rather than silently resolved by fixed source precedence.
+Provider disagreement is surfaced to Identity/Policy systems rather than silently resolved by one permanent source-precedence list.
 
 ## Scaling strategy
 
-Start with APIs for controlled development and correctness. For providers offering official bulk datasets/snapshots, transition high-volume indexing to bulk/incremental workflows when scale justifies it.
+Start API-first for controlled adapter correctness and fixtures, but **do not design one request per paper forever**.
 
-Avoid designing a system that requires one API call per paper forever.
+At scale:
 
-## Phase 0 unresolved source work
+- Crossref → official data files/snapshots;
+- OpenAlex → official snapshot + incremental/reconciliation;
+- PubMed/PMC/Europe PMC → official bulk/history/cloud/OAI mechanisms appropriate to content rights;
+- arXiv → OAI/bulk mechanisms;
+- Unpaywall OA baseline → current OpenAlex-native bulk path where applicable;
+- CORE/Semantic Scholar → only under approved provider licenses/agreements.
 
-Before any adapter becomes production-ready, create a dedicated source contract under `docs/sources/contracts/` containing:
+Bulk-derived and API-derived observations must normalize into compatible provider-neutral observations while retaining their acquisition provenance.
 
-- exact current endpoints;
-- API/schema version;
-- auth requirements;
-- rate limits;
-- bulk options;
-- terms/licensing URLs;
-- allowed caching/storage;
-- attribution;
-- fixtures;
-- known edge cases;
-- date last verified.
+## Rights separation rule
 
-This source-contract freeze is part of Phase 1 implementation readiness.
+Three different questions must never be conflated:
+
+1. **May NOESYN call/use the provider service or dataset?**
+2. **May NOESYN retrieve/store/process the underlying article/version?**
+3. **May NOESYN perform the requested derivative action (display/TDM/summary/TTS/redistribution/commercial use)?**
+
+A provider API license can permit #1 without granting #2/#3. An article Creative Commons license can permit some #2/#3 actions while provider API terms still control #1.
+
+## Phase 1B source implementation order
+
+1. Crossref adapter + fixtures/contract tests;
+2. OpenAlex adapter + fixtures/contract tests;
+3. provider-neutral observation persistence;
+4. DOI/external identifier normalization;
+5. deterministic identity resolution;
+6. hybrid local search/candidate expansion;
+7. Temporal durable sync/reconciliation;
+8. only then add further provider adapters according to roadmap need and license state.
+
+## Drift rule
+
+Before modifying a production adapter based on observed new behavior:
+
+1. reverify current official documentation;
+2. update the provider contract and verification date;
+3. update fixtures/contract tests;
+4. record the engineering-log change;
+5. determine whether historical observations/derived artifacts require reprocessing or reinterpretation.
