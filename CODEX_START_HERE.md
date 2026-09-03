@@ -6,27 +6,80 @@ This file is the mandatory orientation point for Codex/AI coding agents and huma
 
 ## Current stage
 
-**Phase 0 — Architecture & Governance**
+**Phase 1A — Source Contracts & Stack Evaluation: COMPLETE**
 
-Production implementation has not begun. Do not introduce a stack or schema casually just to create visible application code.
+**Immediate next work: Phase 1B — Core Identity Persistence & First Metadata Vertical Slice.**
 
-Read these documents before implementation work:
+Production application code has not yet been scaffolded. The durable stack and initial source strategy **are now frozen by ADR**; do not replace them casually or infer alternative choices from other OneVillage projects.
+
+## Mandatory reading before implementation
 
 1. `README.md`
-2. `docs/PRODUCT_CONSTITUTION.md`
-3. `docs/architecture/TARGET_ARCHITECTURE.md`
-4. `docs/data-model/CORE_DATA_MODEL.md`
-5. `docs/rights/RIGHTS_AND_ACCESS_MODEL.md`
-6. `docs/sources/SOURCE_STRATEGY.md`
-7. `docs/document-engine/DOCUMENT_PLATFORM.md`
-8. `docs/ai/AI_EVIDENCE_ARCHITECTURE.md`
-9. `docs/audio/AUDIO_ARCHITECTURE.md`
-10. `docs/knowledge-graph/KNOWLEDGE_GRAPH_ARCHITECTURE.md`
-11. `docs/reader/READER_ARCHITECTURE.md`
-12. `docs/security/SECURITY_AND_PRIVACY_BASELINE.md`
-13. `docs/adr/ADR-0001-long-term-architecture-first.md`
-14. `ROADMAP.md`
-15. `docs/engineering-log/ENGINEERING_LOG.md`
+2. `docs/status/PHASE_0_STATUS.md`
+3. `docs/PRODUCT_CONSTITUTION.md`
+4. `docs/architecture/TARGET_ARCHITECTURE.md`
+5. `docs/architecture/PHASE_1A_STACK_EVALUATION.md`
+6. `docs/architecture/OPEN_DECISIONS.md`
+7. `docs/data-model/CORE_DATA_MODEL.md`
+8. `docs/rights/RIGHTS_AND_ACCESS_MODEL.md`
+9. `docs/sources/SOURCE_STRATEGY.md`
+10. `docs/sources/contracts/README.md`
+11. relevant provider contract(s) under `docs/sources/contracts/`
+12. `docs/document-engine/DOCUMENT_PLATFORM.md`
+13. `docs/ai/AI_EVIDENCE_ARCHITECTURE.md`
+14. `docs/audio/AUDIO_ARCHITECTURE.md`
+15. `docs/knowledge-graph/KNOWLEDGE_GRAPH_ARCHITECTURE.md`
+16. `docs/reader/READER_ARCHITECTURE.md`
+17. `docs/security/SECURITY_AND_PRIVACY_BASELINE.md`
+18. `docs/adr/ADR-0001-long-term-architecture-first.md`
+19. `docs/adr/ADR-0002-mixed-python-typescript-application-stack.md`
+20. `docs/adr/ADR-0003-postgresql-uuidv7-provenance-core.md`
+21. `docs/adr/ADR-0004-initial-sources-and-hybrid-discovery.md`
+22. `docs/adr/ADR-0005-temporal-durable-workflow-orchestration.md`
+23. `docs/adr/ADR-0006-s3-compatible-artifact-storage-boundary.md`
+24. `ROADMAP.md`
+25. `docs/engineering-log/ENGINEERING_LOG.md`
+
+## Frozen implementation baseline
+
+Unless an explicit superseding ADR is accepted:
+
+### Backend/workers
+
+- Python 3.14 line;
+- FastAPI;
+- Pydantic boundaries;
+- SQLAlchemy 2.x + Alembic;
+- PostgreSQL 18+;
+- UUIDv7 internal durable IDs;
+- `uv` dependency/environment locking.
+
+### Web
+
+- TypeScript;
+- React via Next.js App Router;
+- `pnpm` dependency locking;
+- TypeScript API client/types generated from FastAPI OpenAPI.
+
+### Durable processing/storage
+
+- Temporal for multi-step durable background orchestration;
+- S3-compatible private object-storage boundary; production vendor still deferred.
+
+### Initial metadata/discovery sources
+
+- Crossref + OpenAlex are the initial universal metadata pair;
+- PubMed/PMC/Europe PMC provide biomedical enrichment;
+- Unpaywall is an access resolver;
+- arXiv is a version-aware preprint source;
+- Semantic Scholar and CORE have explicit production/commercial license gates in their contracts.
+
+### Initial projections
+
+- PostgreSQL full-text search initially;
+- typed graph edges relationally initially;
+- vector store deferred;
+- specialized search/graph stores deferred until measured workloads justify them.
 
 ## Non-negotiable invariants
 
@@ -37,13 +90,15 @@ Do not violate these without a new ADR explicitly superseding the relevant decis
 - `ScholarlyWork` and `WorkVersion` are different concepts.
 - External IDs such as DOI, PMID, PMCID, arXiv, OpenAlex, and Semantic Scholar IDs are aliases/observations, not NOESYN primary keys.
 - Corrections/retractions/version changes must remain representable.
+- UUIDv7 is internal identity, not a substitute for explicit timestamps or external identifiers.
 
 ### Provenance
 
-- Important source observations are timestamped/versioned.
+- Important source observations are append-oriented/timestamped/versioned.
 - Acquired artifacts have provenance and integrity hashes where retained.
 - Derived summaries/answers/audio declare dependencies.
 - Historical outputs must not silently change when source metadata or parsers change.
+- Canonical current state may be materialized, but historical source observations used by prior outputs are not destructively erased.
 
 ### Rights
 
@@ -51,6 +106,8 @@ Do not violate these without a new ADR explicitly superseding the relevant decis
 - Rights are evaluated per action.
 - Unknown rights do not default to permission for restricted actions.
 - User entitlement never becomes global public access.
+- Provider API/service permission and article-content copyright permission are separate questions.
+- Source license gates fail closed.
 
 ### Documents
 
@@ -68,16 +125,27 @@ Do not violate these without a new ADR explicitly superseding the relevant decis
 - Repository is public.
 - Never commit secrets, private user data, or restricted/licensed full-text content.
 - Acquisition and parsing are security boundaries.
+- Provider-returned URLs never bypass SSRF/redirect/content policy.
 
 ## Architecture-first implementation rule
 
 Early product functionality must be a vertical slice of the target architecture.
 
-Example of an acceptable early slice:
+Acceptable early identity slice:
 
 ```text
-Crossref source record
-→ canonical Work/WorkVersion
+Crossref/OpenAlex provider record
+→ immutable SourceRecordObservation
+→ normalized external identifiers
+→ canonical Work / WorkVersion
+→ identity-decision provenance
+→ local PostgreSQL metadata search
+```
+
+Later vertical slice example:
+
+```text
+canonical Work/WorkVersion
 → Unpaywall access candidate
 → rights decision
 → permitted PMC JATS artifact
@@ -88,9 +156,7 @@ Crossref source record
 → audio summary
 ```
 
-Only part of each domain may exist initially, but the data lineage fits the target model.
-
-Example of an unacceptable shortcut:
+Unacceptable shortcut:
 
 ```text
 papers table
@@ -100,85 +166,95 @@ papers table
 → summary string
 ```
 
-if implemented in a way that discards version, rights, provenance, and evidence semantics.
+when it discards version, rights, provenance, artifact and evidence semantics.
+
+## Phase 1B implementation order
+
+Do not jump directly to the reader/AI.
+
+1. initialize the documented mixed-language repository structure;
+2. configure Python/TypeScript lockfiles and reproducible local tooling;
+3. create PostgreSQL/Alembic baseline;
+4. implement UUIDv7 domain ID convention;
+5. implement `SourceRecordObservation`, `ScholarlyWork`, `WorkVersion`, `ExternalIdentifier` and identity-decision persistence;
+6. implement Crossref adapter from `CROSSREF.md` with deterministic fixtures;
+7. implement OpenAlex adapter from `OPENALEX.md` with deterministic fixtures;
+8. implement DOI normalization and deterministic high-confidence identity rules;
+9. introduce Temporal for replayable multi-step synchronization/reconciliation;
+10. expose baseline metadata API/search;
+11. prove idempotency/replay/provenance before expanding providers.
 
 ## Documentation rule
 
 After every meaningful change:
 
 1. update the relevant architecture/source/schema/operation documentation;
-2. append a timestamped entry to `docs/engineering-log/ENGINEERING_LOG.md`;
-3. update `CHANGELOG.md` when the change is user-facing or materially architectural;
-4. add/update an ADR when a durable architectural choice is made;
-5. update `ROADMAP.md` status when a milestone changes.
+2. append a timezone-qualified entry to `docs/engineering-log/ENGINEERING_LOG.md`;
+3. update `CHANGELOG.md` when user-facing or materially architectural;
+4. add/update an ADR for durable architectural choices;
+5. update `ROADMAP.md` and status files when milestone state changes.
 
 The engineering-log entry should capture:
 
-- UTC or timezone-qualified timestamp;
-- what changed;
-- why;
+- timestamp with timezone;
+- objective;
+- what changed and why;
 - files/components touched;
-- commands/tests run;
+- external documentation/research consulted when material;
+- commands/tests/checks run;
 - result;
 - unresolved risks/next step;
-- commit/PR reference when known.
+- commit/PR references when available.
 
 ## Research/source changes
 
 Never implement a scholarly source based on remembered API behavior.
 
-Before coding an adapter:
+Before changing an adapter:
 
-1. verify current official documentation;
-2. create/update a source contract under `docs/sources/contracts/`;
-3. record endpoint/version/auth/rate/bulk/terms/caching/attribution details;
-4. create fixtures;
-5. test failure and rate-limit behavior;
-6. timestamp when the contract was last verified.
+1. read its current source contract;
+2. reverify current official documentation if behavior/terms may have changed;
+3. update endpoint/version/auth/rate/bulk/terms/caching/attribution details;
+4. update fixtures/contract tests;
+5. record verification date;
+6. evaluate whether historical observations/derived artifacts are affected.
 
-## Stack decisions
+## Source enablement rule
 
-The implementation stack is intentionally unfrozen during Phase 0.
+A provider contract may be verified while a production capability remains disabled.
 
-Do not infer that a framework/database is selected merely because another OneVillage project uses it.
+Current examples:
 
-Any stack proposal should compare options against:
+- Semantic Scholar broad persistent/commercial dataset use: gated;
+- CORE commercial product integration: gated;
+- full-text storage/processing from any provider: action/license/version specific.
 
-- canonical relational data complexity;
-- background ingestion/processing;
-- text/search workload;
-- AI/data tooling ecosystem;
-- document parsing ecosystem;
-- deployment/operations burden;
-- portability;
-- testing;
-- cost;
-- contributor velocity.
-
-Durable stack decisions should be recorded as ADRs.
+Do not turn a disabled license gate into a warning-only path.
 
 ## Testing doctrine
 
-Every subsystem eventually needs deterministic fixtures and replay tests.
+Every subsystem needs deterministic fixtures and replay tests appropriate to its semantics.
 
-Priority test classes:
+Phase 1B priority classes:
 
-- identity/deduplication;
-- version relationships;
-- source adapters;
-- rights decisions;
-- artifact hashing/acquisition;
-- parser structure/source anchors;
-- evidence extraction;
-- AI grounding/numeric fidelity;
-- retraction/correction propagation;
-- authorization isolation;
-- audio source synchronization.
+- DOI/external-ID normalization;
+- exact identifier matching;
+- ambiguous identity preservation;
+- Work vs WorkVersion;
+- append-only source observations;
+- adapter schema drift;
+- provider pagination/rate/backoff;
+- idempotent re-ingest;
+- changed-source observation handling;
+- upstream OpenAlex merge/deletion reconciliation;
+- PostgreSQL constraints/migrations;
+- Temporal workflow replay when introduced;
+- generated OpenAPI/TypeScript-client drift.
 
 ## When uncertain
 
-Do not silently simplify a high-cost-to-retrofit concept. Record the uncertainty in architecture/open-decision documentation, gather evidence, and make the decision explicitly.
+Do not silently simplify a high-cost-to-retrofit concept. Check `OPEN_DECISIONS.md`, record the uncertainty, gather evidence, and make the decision explicitly.
 
-## Immediate next work after Phase 0
+## Immediate next work
 
-Phase 1 should begin with **source-contract and implementation-stack evaluation**, followed by canonical identity persistence and the first metadata adapter vertical slice.
+Begin **Phase 1B — Core Identity Persistence & First Metadata Vertical Slice**. The Phase 1A research/stack/source-contract work is complete and should be treated as authoritative until explicitly superseded.
