@@ -31,16 +31,16 @@ This does not mean implementing every subsystem immediately. It means defining s
 
 ## Core invariants
 
-1. **Canonical identity before convenience.** A scholarly work may have many identifiers and versions. NOESYN must distinguish the conceptual work from specific manifestations such as a preprint, accepted manuscript, version of record, correction, or retraction.
+1. **Canonical identity before convenience.** A scholarly work may have many identifiers and versions. NOESYN distinguishes the conceptual work from specific manifestations such as a preprint, accepted manuscript, version of record, correction, or retraction.
 2. **Provenance is first-class.** Derived claims, summaries, answers, and audio explanations must be traceable to the source version and, where technically possible, to the exact section, paragraph, table, figure, equation, or other evidence unit that supports them.
-3. **Rights are data, not an afterthought.** Discovery, display, storage, redistribution, AI processing, text-to-speech, caching, and commercial reuse are separate permissions and must be modeled explicitly.
+3. **Rights are data, not an afterthought.** Discovery, display, storage, redistribution, AI processing, text-to-speech, caching, and commercial reuse are separate permissions and are modeled explicitly.
 4. **Discover broadly; reproduce only when authorized.** NOESYN may index metadata for paywalled or restricted works while displaying or processing full text only when rights, user authorization, or source terms allow it.
-5. **Source adapters are replaceable.** Crossref, OpenAlex, Semantic Scholar, PubMed/PMC, Europe PMC, CORE, Unpaywall, arXiv, repositories, publishers, and future sources must sit behind source-specific adapters rather than leaking source schemas throughout the product.
-6. **Evidence-grounded AI by default.** AI output should distinguish source facts, author interpretation, model explanation, uncertainty, and synthesis. Unsupported confidence must not be presented as evidence.
-7. **Version-aware research.** Corrections, retractions, updates, preprints, and later versions must never be collapsed into a single undifferentiated document.
-8. **Human-readable and machine-readable are both first-class.** The same canonical research model should support the reader, search, AI, audio, exports, APIs, and future agents.
+5. **Source adapters are replaceable.** Crossref, OpenAlex, Semantic Scholar, PubMed/PMC, Europe PMC, CORE, Unpaywall, arXiv, repositories, publishers, and future sources sit behind source-specific adapters rather than leaking source schemas throughout the product.
+6. **Evidence-grounded AI by default.** AI output distinguishes source facts, author interpretation, model explanation, uncertainty, and synthesis. Unsupported confidence is not presented as evidence.
+7. **Version-aware research.** Corrections, retractions, updates, preprints, and later versions are never collapsed into a single undifferentiated document.
+8. **Human-readable and machine-readable are both first-class.** The same canonical research model supports the reader, search, AI, audio, exports, APIs, and future agents.
 9. **Accessibility is a product requirement.** Audio, responsive reading, semantic document structure, keyboard navigation, screen-reader compatibility, and comprehensible explanations are architectural concerns, not optional polish.
-10. **Reproducibility over rediscovery.** Meaningful design, code, schema, dependency, configuration, source-contract, and operational changes must be documented so future work does not repeat prior investigation.
+10. **Reproducibility over rediscovery.** Meaningful design, code, schema, dependency, configuration, source-contract, and operational changes are documented so future work does not repeat prior investigation.
 
 ## Long-term capability map
 
@@ -91,8 +91,6 @@ NOESYN
 
 ## Provenance chain
 
-The target lineage is:
-
 ```text
 Source record
   ↓
@@ -115,20 +113,87 @@ Summary / answer / comparison / audio explanation
 
 NOESYN should be able to answer **“Where did you get that?”** with progressively more precise provenance rather than merely citing a nearby paper.
 
-## Phase 0 status
+## Architecture and phase status
 
-Phase 0 establishes architecture and governance before production implementation. See:
+### Phase 0 — COMPLETE
+
+Architecture & Governance is an architecture freeze candidate. High-cost-to-retrofit identity, provenance, rights, document/evidence, AI/audio, security and graph semantics were defined before implementation.
+
+See `docs/status/PHASE_0_STATUS.md`.
+
+### Phase 1A — COMPLETE
+
+Source Contracts & Stack Evaluation has frozen the initial implementation baseline and source strategy.
+
+See:
+
+- `docs/architecture/PHASE_1A_STACK_EVALUATION.md`
+- `docs/sources/contracts/README.md`
+- `docs/architecture/OPEN_DECISIONS.md`
+- ADR-0002 through ADR-0006.
+
+### Immediate next phase
+
+**Phase 1B — Core Identity Persistence & First Metadata Vertical Slice.**
+
+No production application code has been scaffolded yet.
+
+## Accepted implementation baseline
+
+### Backend / research workers
+
+- Python 3.14 line;
+- FastAPI;
+- Pydantic boundaries;
+- SQLAlchemy 2.x + Alembic;
+- PostgreSQL 18+;
+- UUIDv7 durable internal IDs;
+- `uv` dependency/environment locking.
+
+### Web
+
+- TypeScript;
+- React via Next.js App Router;
+- `pnpm` dependency locking;
+- TypeScript API client generated from FastAPI OpenAPI.
+
+### Durable workflows / artifacts
+
+- Temporal for multi-step durable background orchestration;
+- S3-compatible private object-storage interface; production storage vendor remains deferred.
+
+### Initial scholarly-source strategy
+
+- **Crossref + OpenAlex** — initial universal metadata pair;
+- **PubMed / PMC / Europe PMC** — biomedical bibliography, identity and permitted structured/full-text enrichment;
+- **Unpaywall** — DOI access/OA-location resolver;
+- **arXiv** — version-aware preprint source;
+- **Semantic Scholar** — strategic citation/recommendation enrichment with a commercial-use gate for broad persistent production data use;
+- **CORE** — strategic repository/OA/full-text discovery with a commercial-license gate for production product use.
+
+### Initial projections
+
+- PostgreSQL full-text search initially;
+- graph edges in provenance-aware relational tables initially;
+- dedicated search/vector/graph stores deferred until measured workloads justify them.
+
+## Architectural documents
+
+Start with:
 
 - `docs/PRODUCT_CONSTITUTION.md`
 - `docs/architecture/TARGET_ARCHITECTURE.md`
+- `docs/architecture/PHASE_1A_STACK_EVALUATION.md`
 - `docs/data-model/CORE_DATA_MODEL.md`
 - `docs/rights/RIGHTS_AND_ACCESS_MODEL.md`
 - `docs/sources/SOURCE_STRATEGY.md`
+- `docs/sources/contracts/README.md`
+- `docs/document-engine/DOCUMENT_PLATFORM.md`
 - `docs/ai/AI_EVIDENCE_ARCHITECTURE.md`
 - `docs/audio/AUDIO_ARCHITECTURE.md`
 - `docs/knowledge-graph/KNOWLEDGE_GRAPH_ARCHITECTURE.md`
 - `docs/security/SECURITY_AND_PRIVACY_BASELINE.md`
-- `docs/adr/ADR-0001-long-term-architecture-first.md`
+- `docs/adr/`
 - `ROADMAP.md`
 - `CODEX_START_HERE.md`
 - `CHANGELOG.md`
@@ -155,6 +220,6 @@ Secret handling and rights enforcement are architecture requirements from the fi
 
 ## Current stage
 
-**Phase 0 — Architecture & Governance**
+**Phase 1A is complete. Phase 1B is next.**
 
-No production stack is frozen yet. Technology choices should follow the domain boundaries and invariants documented during Phase 0 rather than defining them prematurely.
+The implementation stack and initial metadata source pair are now durable ADR-backed decisions. Remaining open choices are tracked in `docs/architecture/OPEN_DECISIONS.md` and must not be silently decided by convenience.
