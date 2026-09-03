@@ -8,6 +8,8 @@ Every phase must update documentation and the timestamped engineering log.
 
 ## Phase 0 — Architecture & Governance
 
+**Status:** COMPLETE — architecture freeze candidate
+
 **Goal:** define the system before implementation choices harden the wrong assumptions.
 
 Deliverables:
@@ -28,35 +30,88 @@ Deliverables:
 - [x] implementation roadmap;
 - [x] Codex/contributor start-here guide;
 - [x] changelog and timestamped engineering-log convention;
-- [ ] freeze implementation stack after Phase 1 source-contract/technology evaluation;
+- [x] freeze core implementation stack after Phase 1A source-contract/technology evaluation;
 - [ ] qualified legal review before workflows involving commercial-scale restricted full-text processing or redistribution.
 
-### Phase 0 exit condition
+Phase 0 architecture status: `docs/status/PHASE_0_STATUS.md`.
 
-The architecture is a freeze candidate when all known high-cost-to-retrofit concepts are explicitly modeled and open implementation choices are documented rather than silently assumed.
+---
 
 ## Phase 1 — Source Contracts & Core Identity
 
-**Goal:** prove canonical identity and source adapters with metadata only before full-text complexity.
+**Goal:** prove canonical identity and source adapters with metadata before full-text complexity.
+
+### Phase 1A — Source Contracts & Stack Evaluation
+
+**Status:** COMPLETE
 
 Deliverables:
 
-- source contracts for initial providers;
-- provider-neutral SourceRecordObservation schema;
-- canonical Work / WorkVersion / ExternalIdentifier schema;
-- DOI normalization and resolution;
-- PMID/PMCID/arXiv/provider identifier crosswalks;
-- deterministic and confidence-based deduplication;
-- first metadata adapters (recommended initial set: Crossref + OpenAlex or Semantic Scholar, with exact choice frozen after contract review);
-- append-oriented source observation persistence;
-- replay/idempotency tests;
-- source fixture corpus;
-- provider health/rate/backoff layer;
-- baseline search API over normalized metadata.
+- [x] verified Crossref contract;
+- [x] verified OpenAlex contract;
+- [x] verified Semantic Scholar contract with commercial-use gate;
+- [x] verified Unpaywall contract;
+- [x] verified PubMed contract;
+- [x] verified PMC contract;
+- [x] verified Europe PMC contract;
+- [x] verified CORE contract with commercial-license gate;
+- [x] verified arXiv contract;
+- [x] select initial universal metadata pair: Crossref + OpenAlex;
+- [x] select backend/web language/framework boundary;
+- [x] select canonical relational database;
+- [x] select internal ID format;
+- [x] select provenance persistence pattern;
+- [x] select initial search projection strategy;
+- [x] select durable workflow orchestration;
+- [x] select object-storage interface boundary;
+- [x] record decisions in ADRs and reconcile `OPEN_DECISIONS.md`;
+- [x] update `README.md` and `CODEX_START_HERE.md` handoff.
 
-Exit proof:
+Authority:
 
-Given the same observed provider records, NOESYN can deterministically reconstruct canonical identity decisions and explain which observations caused them.
+- `docs/architecture/PHASE_1A_STACK_EVALUATION.md`
+- `docs/sources/contracts/README.md`
+- ADR-0002 through ADR-0006.
+
+### Phase 1B — Core Identity Persistence & First Metadata Vertical Slice
+
+**Status:** NEXT
+
+Deliverables:
+
+- [ ] initialize mixed Python/TypeScript repository structure;
+- [ ] initialize `uv`/Python and `pnpm`/TypeScript lockfiles;
+- [ ] local PostgreSQL 18+ development environment;
+- [ ] FastAPI application baseline and generated OpenAPI contract;
+- [ ] Next.js application baseline and generated TypeScript API client;
+- [ ] SQLAlchemy/Alembic baseline;
+- [ ] UUIDv7 internal ID convention;
+- [ ] provider-neutral `SourceRecordObservation` schema;
+- [ ] canonical `ScholarlyWork` schema;
+- [ ] canonical `WorkVersion` schema;
+- [ ] typed `ExternalIdentifier` schema;
+- [ ] identity-decision/provenance persistence;
+- [ ] DOI normalization/resolution;
+- [ ] first Crossref adapter from verified contract;
+- [ ] first OpenAlex adapter from verified contract;
+- [ ] deterministic high-confidence deduplication rules;
+- [ ] ambiguous-match preservation workflow;
+- [ ] append-oriented source observation persistence;
+- [ ] provider health/rate/backoff layer;
+- [ ] Temporal baseline for durable source synchronization/reconciliation;
+- [ ] OpenAlex upstream merge/deletion reconciliation model;
+- [ ] deterministic provider fixture corpus;
+- [ ] replay/idempotency tests;
+- [ ] PostgreSQL metadata full-text search projection;
+- [ ] baseline metadata/search API;
+- [ ] generated OpenAPI/TypeScript-client drift check;
+- [ ] CI baseline for backend/web/migrations/workflow replay where applicable.
+
+### Phase 1 exit proof
+
+Given the same observed provider records, NOESYN can deterministically reconstruct canonical identity decisions and explain which observations caused them. Re-ingestion is idempotent, changed source state creates new observations, and external provider IDs remain aliases rather than canonical identity.
+
+---
 
 ## Phase 2 — Access Resolver & Rights Engine
 
@@ -66,8 +121,8 @@ Deliverables:
 
 - AccessLocation schema;
 - RightsAssertion / License / RightsDecision schemas;
-- Unpaywall adapter/contract;
-- CORE/repository access candidates as appropriate;
+- Unpaywall adapter from verified contract;
+- CORE/repository access candidates where the production license gate permits;
 - PMC/Europe PMC access signals;
 - action-based policy engine;
 - user-entitlement placeholder/context model;
@@ -88,6 +143,7 @@ Deliverables:
 
 - DocumentArtifact registry and hashing;
 - secure retrieval worker;
+- S3-compatible artifact storage implementation;
 - storage/retention classes;
 - JATS parser first where available;
 - born-digital PDF parser path;
@@ -118,7 +174,7 @@ Deliverables:
 - math rendering;
 - evidence/source synchronization;
 - integrity/version banners;
-- accessibility baseline;
+- formal accessibility baseline;
 - private annotations/highlights;
 - reading state.
 
@@ -235,9 +291,9 @@ Deliverables:
 
 Potential deliverables:
 
-- bulk scholarly metadata ingestion;
+- corpus-scale official snapshot synchronization;
 - incremental source sync at corpus scale;
-- specialized search/vector/graph infrastructure;
+- specialized search/vector/graph infrastructure when measured needs justify it;
 - public/developer API;
 - library/institution integrations;
 - entitlement federation where legally/contractually appropriate;
@@ -260,18 +316,22 @@ Every phase includes:
 - documentation;
 - timestamped engineering logs.
 
-## What is intentionally not frozen in Phase 0
+## Decisions intentionally still open after Phase 1A
 
-- frontend framework;
-- backend language/framework;
-- relational database vendor;
-- object store vendor;
-- search engine;
+See `docs/architecture/OPEN_DECISIONS.md` for authority. Major deferred items include:
+
+- production object-store vendor;
+- production hosting/cloud provider;
+- dedicated search engine beyond PostgreSQL when needed;
 - vector engine;
-- graph engine;
-- queue/orchestration technology;
+- specialized graph engine;
 - AI provider/model;
 - TTS provider/model;
-- hosting/cloud provider.
+- native mobile strategy;
+- authentication provider;
+- formal accessibility target;
+- observability vendor;
+- commercial/legal operating policy;
+- evaluation-corpus licensing.
 
-Those choices must be evaluated against the architecture rather than chosen first and allowed to define it.
+These choices must be resolved when their implementation window arrives rather than being silently assumed.
